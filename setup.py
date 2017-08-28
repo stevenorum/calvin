@@ -1,6 +1,7 @@
 #!/usr/bin/env python3                                                                                                                                   
 
 from setuptools import setup
+import tenzing
 
 setup(name='calvin',
       version='0.1.0',
@@ -10,4 +11,5 @@ setup(name='calvin',
       url='www.stevenorum.com',
       packages=['calvin'],
       package_dir={'calvin': 'calvin'},
+      cmdclass = {'upload':tenzing.Upload},
      )
