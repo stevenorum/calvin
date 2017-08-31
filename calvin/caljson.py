@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import datetime
+import decimal
 import json
 import logging
 import traceback
@@ -21,7 +23,7 @@ def get_json_error(exc, context_lines=5):
         added_width = max_line_number_length + 2
 
         line_number = exc.lineno - 1 # it's 1-indexed                                                                                                                                                                                                                        \
-                                                                                                                                                                                                                                                                              
+
         column_number = exc.colno
         preceding_line_start = max(0, line_number - context_lines)
         following_line_end = min(max_line_number, line_number + context_lines + 1)
@@ -46,9 +48,25 @@ def get_json_error(exc, context_lines=5):
         return "\n".join(error_lines)
     return None
 
+def get_class(clazzname):
+    '''
+    Dynamically retrieve a class from its name.
+
+    (From http://stackoverflow.com/questions/547829/how-to-dynamically-load-a-python-class)
+
+    :param clazzname: Name of the class to load.
+    :rtype: Class
+    '''
+    components = clazzname.split('.')
+    mod = __import__(components[0])
+    for comp in components[1:]:
+        mod = getattr(mod, comp)
+    return mod
+
 class blob(dict):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.default = None
         self.__predefined_attributes__ = [a for a in dir(self)]
         self.__predefined_attributes__.append("__predefined_attributes__")
         for key in self.keys():
@@ -57,6 +75,12 @@ class blob(dict):
                 pass
             pass
         pass
+
+    def __getattr__(self, name):
+        try:
+            return dict.__getattr__(self, name)
+        except:
+            return self.default
 
     def __setitem__(self, key, value):
         super().__setitem__(key, value)
@@ -72,12 +96,49 @@ class blob(dict):
             pass
         pass
 
+datetime_format = "%Y/%m/%d %H:%M:%S.%fZ%z"
+
+def calvin_object_hook(obj):
+    if not obj:
+        return obj
+    if not isinstance(obj, dict):
+        return obj
+    if len(obj) != 1:
+        return obj
+    v = obj.get("caljson", None)
+    if not v:
+        return obj
+    if isinstance(v, str) and v.startswith("cal:") and len(v.split(":")) >= 3:
+        objtype = v.split(":")[1]
+        objstring = ":".join(v.split(":")[2:])
+        try:
+            if objtype == 'datetime.datetime':
+                return datetime.datetime.strptime(objstring, datetime_format)
+            elif objtype == 'decimal.Decimal':
+                return decimal.Decimal(objstring)
+            else:
+                return get_class(objtype)._json_deserialize(objstring)
+        except Exception:
+            return obj
+    return obj
+
 class CalvinEncoder(json.JSONEncoder):
+    def _format_custom_value(self, objstring, objtype):
+        return {"caljson":"cal:{objtype}:{objstring}".format(objtype=objtype, objstring=objstring)}
+
     def default(self, obj):
         # Let the base class default method raise the TypeError
+        if type(obj) == datetime.datetime:
+            return self._format_custom_value(obj.strftime(datetime_format), "datetime.datetime")
+        if type(obj) == decimal.Decimal:
+            return self._format_custom_value(str(obj), "decimal.Decimal")
         try:
+            if hasattr(obj, "_json_serialize"):
+                blob, classname = obj._json_serialize()
+                return self._format_custom_value(blob, classname)
             return json.JSONEncoder.default(self, obj)
         except TypeError:
+            traceback.print_exc()
             return "<unserializable object of type {}>".format(type(obj))
 
 def dump(*args, **kwargs):
@@ -90,18 +151,24 @@ def dumpf(obj, filename, *args, **kwargs):
     with open(filename, "w") as f:
         return dump(obj, f, *args, **kwargs)
 
+def _prep_load_kwargs(kwargs):
+    params = dict(kwargs)
+    if "object_hook" not in params:
+        params["object_hook"] = calvin_object_hook
+    return params
+
 def load(*args, **kwargs):
     try:
-        return json.load(*args, **kwargs)
+        return json.load(*args, **_prep_load_kwargs(kwargs))
     except json.decoder.JSONDecodeError as e:
         msg = get_json_error(e)
         if msg:
             logging.warn(e)
         raise e
-    
+
 def loads(*args, **kwargs):
     try:
-        return json.loads(*args, **kwargs)
+        return json.loads(*args, **_prep_load_kwargs(kwargs))
     except json.decoder.JSONDecodeError as e:
         msg = get_json_error(e)
         if msg:
