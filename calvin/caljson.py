@@ -131,10 +131,15 @@ class CalvinEncoder(json.JSONEncoder):
         if type(obj) == datetime.datetime:
             return self._format_custom_value(obj.strftime(datetime_format), "datetime.datetime")
         if type(obj) == decimal.Decimal:
+            if obj == int(obj):
+                # It was given to us as a decimal, but it's just an integer, so treat it as such.
+                return int(obj)
             return self._format_custom_value(str(obj), "decimal.Decimal")
         try:
             if hasattr(obj, "_json_serialize"):
                 blob, classname = obj._json_serialize()
+                if classname in ["str","int","float","dict"]:
+                    return blob
                 return self._format_custom_value(blob, classname)
             return json.JSONEncoder.default(self, obj)
         except TypeError:
