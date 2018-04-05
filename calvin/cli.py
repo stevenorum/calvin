@@ -42,7 +42,9 @@ class CLIDispatcher(object):
 
         for operation in cls.operation_info.keys():
             op = cls.operation_info[operation]
-            operation_cli = '--{0}'.format(operation.replace('_','-'))
+            operation_cli = '--{0}'.format(operation)
+            # operation_cli = '--{0}'.format(operation.replace('_','-'))
+            # operations.add_argument(operation_cli, action='store_true', help='Operation: {0}'.format(op['help']))
             if op.get('initial', None):
                 operations.add_argument('-{0}'.format(op['initial']), operation_cli, action='store_true', help='Operation: {0}'.format(op['help']))
             else:
@@ -56,8 +58,8 @@ class CLIDispatcher(object):
         operation = None
         kwargs = {p[0]:p[1] for p in args._get_kwargs()}
         for key in kwargs:
-            if key in cls.operation_info and kwargs[key]:
-                operation = key
+            if key.replace("_","-") in cls.operation_info and kwargs[key]:
+                operation = key.replace("-","_")
         verbosity = kwargs["verbosity"]
         if verbosity >= 2:
             logging.basicConfig(level=logging.DEBUG)

@@ -6,6 +6,8 @@ import json
 import logging
 import traceback
 
+from calvin.files import read, write
+
 def add_line_numbers(lines, start, width):
     added_lines = []
     for i in range(len(lines)):
@@ -153,8 +155,7 @@ def dumps(*args, **kwargs):
     return json.dumps(cls=CalvinEncoder, *args, **kwargs)
 
 def dumpf(obj, filename, *args, **kwargs):
-    with open(filename, "w") as f:
-        return dump(obj, f, *args, **kwargs)
+    write(filename, dumps(obj, *args, **kwargs))
 
 def _prep_load_kwargs(kwargs):
     params = dict(kwargs)
@@ -181,5 +182,4 @@ def loads(*args, **kwargs):
         raise e
 
 def loadf(filename, *args, **kwargs):
-    with open(filename, "r") as f:
-        return load(f, *args, **kwargs)
+    return loads(read(filename), *args, **kwargs)
