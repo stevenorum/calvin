@@ -24,7 +24,7 @@ def get_json_error(exc, context_lines=5):
         max_line_number_length = len(str(max_line_number))
         added_width = max_line_number_length + 2
 
-        line_number = exc.lineno - 1 # it's 1-indexed                                                                                                                                                                                                                        \
+        line_number = exc.lineno - 1 # it's 1-indexed
 
         column_number = exc.colno
         preceding_line_start = max(0, line_number - context_lines)
