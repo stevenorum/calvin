@@ -6,5 +6,5 @@ TL;DR:
 
 git tag 0.0.1 -m "Add a tag so that we can put this on PyPI."
 git push --tags origin master
-python setup.py sdist upload -r testpypi
-python setup.py sdist upload -r pypi
+python3 setup.py sdist upload -r testpypi
+python3 setup.py sdist upload -r pypi
